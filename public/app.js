@@ -196,4 +196,93 @@ function editFormHtml(form, scope) {
       </div>`
     )
     .join('');
-  const debitTotal
+  const debitTotal = const debitTotal = form.entries.filter((x) => x.side === 'debit').reduce((s, x) => s + (Number(x.amount) || 0), 0);
+  const creditTotal = form.entries.filter((x) => x.side === 'credit').reduce((s, x) => s + (Number(x.amount) || 0), 0);
+  const balanced = Math.abs(debitTotal - creditTotal) < 0.01;
+  return `
+    <div class="edit-card ${accent}" data-scope="${scope}">
+      <div class="edit-row">
+        <input type="date" data-field="date" value="${form.date}" />
+      </div>
+      <div class="items-wrap">${linesHtml}</div>
+      <button type="button" class="link-btn add-entry">+ Add line</button>
+      <div class="line-total">
+        <span style="${balanced ? '' : 'color:var(--rule)'}">${balanced ? 'Balanced' : `Off by ${formatAmount(Math.abs(debitTotal - creditTotal), currency)}`}</span>
+        <span class="mono voucher-text">${formatAmount(debitTotal, currency)}</span>
+      </div>
+      <textarea data-field="narration" rows="2" placeholder="Narration">${escapeHtml(form.narration || '')}</textarea>
+    </div>`;
+}
+
+/* ---------------- Main app rendering ---------------- */
+
+function renderReview() {
+  if (!state.draft) return '';
+  if (state.draftForm) {
+    return `
+      <h2 class="section-title">Review</h2>
+      ${editFormHtml(state.draftForm, 'draft')}
+      <div class="actions-row">
+        <button class="btn muted" id="cancel-edit-draft">Cancel</button>
+        <button class="btn primary" id="approve-draft">&#10003; Approve</button>
+      </div>`;
+  }
+  return `
+    <h2 class="section-title">Review</h2>
+    ${documentCardHtml(state.draft, state.user.currency)}
+    <div class="actions-row">
+      <button class="btn muted" id="discard-draft">&#128465; Discard</button>
+      <button class="btn" id="edit-draft">&#9998; Edit</button>
+      <button class="btn primary" id="approve-draft">&#10003; Approve</button>
+    </div>`;
+}
+
+function renderRegister() {
+  if (!state.entries.length) {
+    return `<div class="empty-state">No entries yet. Your first voucher or bill will appear here.</div>`;
+  }
+  return state.entries
+    .map((entry) => {
+      const isExpanded = state.expandedId === entry.id;
+      const isEditing = state.editingEntryId === entry.id;
+      const isConfirming = state.confirmDeleteId === entry.id;
+      const label = entry.docType === 'bill' ? entry.party : entry.narration;
+      const amount = entry.docType === 'bill' ? entry.total : entry.entries.filter((x) => x.side === 'debit').reduce((s, x) => s + x.amount, 0);
+      return `
+      <div class="register-row" data-id="${entry.id}">
+        <div class="row-summary" data-action="toggle-expand" data-id="${entry.id}">
+          <span class="mono muted date-col">${formatDate(entry.date)}</span>
+          <span class="badge ${entry.docType === 'bill' ? 'bill' : 'voucher'}">${entry.docType === 'bill' ? 'Bill' : 'Voucher'}</span>
+          <span class="label-col">${escapeHtml(label)}</span>
+          <span class="mono">${formatAmount(amount, state.user.currency)}</span>
+          <span class="chevron">${isExpanded ? '&#9650;' : '&#9660;'}</span>
+        </div>
+        ${
+          isExpanded
+            ? `<div class="row-detail">
+                ${
+                  isEditing
+                    ? `${editFormHtml(state.editingEntryForm, 'entry')}
+                       <div class="actions-row">
+                         <button class="btn muted" data-action="cancel-edit-entry">Cancel</button>
+                         <button class="btn primary" data-action="save-entry" data-id="${entry.id}">&#10003; Save changes</button>
+                       </div>`
+                    : `${documentCardHtml(entry, state.user.currency)}
+                       <div class="actions-row">
+                         ${
+                           isConfirming
+                             ? `<span class="muted">Remove this entry?</span>
+                                <button class="icon-btn" data-action="confirm-delete" data-id="${entry.id}">&#10003;</button>
+                                <button class="icon-btn" data-action="cancel-delete">&#10005;</button>`
+                             : `<button class="btn" data-action="edit-entry" data-id="${entry.id}">&#9998; Edit</button>
+                                <button class="btn muted" data-action="ask-delete" data-id="${entry.id}">&#128465; Remove</button>`
+                         }
+                       </div>`
+                }
+              </div>`
+            : ''
+        }
+      </div>`;
+    })
+    .join('');
+}
