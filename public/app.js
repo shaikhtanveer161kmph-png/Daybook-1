@@ -286,3 +286,262 @@ function renderRegister() {
     })
     .join('');
 }
+function renderApp() {
+  const root = document.getElementById('root');
+  const u = state.user;
+  const totals = state.entries.reduce(
+    (acc, e) => {
+      if (e.docType === 'bill') acc.sales += e.total;
+      if (e.docType === 'voucher') acc.expense += e.entries.filter((x) => x.side === 'debit').reduce((s, x) => s + x.amount, 0);
+      return acc;
+    },
+    { sales: 0, expense: 0 }
+  );
+
+  root.innerHTML = `
+    <div class="app-wrap">
+      <div class="header-row">
+        <div class="brand"><span class="brand-mark">&#9638;</span><h1>Daybook</h1></div>
+        <div class="header-actions">
+          <div class="currency-group">
+            ${['₹', '$', '€', '£'].map((sym) => `<button class="sym-btn ${u.currency === sym ? 'active' : ''}" data-sym="${sym}">${sym}</button>`).join('')}
+          </div>
+          <button id="billing-btn" class="btn small">${u.subscriptionStatus === 'active' ? 'Manage billing' : 'Subscribe'}</button>
+          <button id="logout-btn" class="btn small muted">Log out</button>
+        </div>
+      </div>
+      <p class="muted">Write what happened. Get the voucher or bill.</p>
+      ${
+        u.subscriptionStatus !== 'active'
+          ? `<div class="trial-note">Free trial: ${u.entryCount} of 5 entries used.</div>`
+          : ''
+      }
+
+      <textarea id="input-text" rows="3" placeholder="e.g. Paid 1,200 cash for the office electricity bill" ${state.draft ? 'disabled' : ''}></textarea>
+      <div class="row-between">
+        <span class="hint">${state.draft ? 'Approve or discard the entry below to add another' : 'Enter to create · Shift+Enter for a new line'}</span>
+        <button id="create-btn" class="btn primary" ${state.draft || state.loading ? 'disabled' : ''}>${state.loading ? 'Drafting…' : 'Create entry'}</button>
+      </div>
+      ${state.error ? `<div class="error-banner">${escapeHtml(state.error)}</div>` : ''}
+
+      <div id="review-area">${renderReview()}</div>
+
+      ${
+        state.entries.length
+          ? `<div class="summary-grid">
+              <div class="summary-cell"><div class="label">Sales</div><div class="mono bill-color">${formatAmount(totals.sales, u.currency)}</div></div>
+              <div class="summary-cell"><div class="label">Expenses</div><div class="mono voucher-color">${formatAmount(totals.expense, u.currency)}</div></div>
+              <div class="summary-cell"><div class="label">Net</div><div class="mono">${formatAmount(totals.sales - totals.expense, u.currency)}</div></div>
+            </div>`
+          : ''
+      }
+
+      <h2 class="section-title">Entries</h2>
+      <div id="register">${renderRegister()}</div>
+    </div>
+  `;
+
+  attachAppHandlers();
+}
+
+/* ---------------- Actions ---------------- */
+
+async function handleCreateEntry() {
+  const textEl = document.getElementById('input-text');
+  const text = textEl.value.trim();
+  if (!text || state.draft || state.loading) return;
+  state.loading = true;
+  state.error = '';
+  renderApp();
+  try {
+    const draft = await api('/entries/draft', { method: 'POST', body: { text } });
+    state.draft = draft;
+  } catch (e) {
+    state.error =
+      e.status === 402
+        ? 'Free trial used up — subscribe to keep creating entries.'
+        : e.data?.error || "Couldn't turn that into an entry. Try including an amount and what it was for.";
+  } finally {
+    state.loading = false;
+    renderApp();
+  }
+}
+
+function handleEditDraft() {
+  state.draftForm = JSON.parse(JSON.stringify(state.draft));
+  renderApp();
+}
+function handleCancelEditDraft() {
+  state.draftForm = null;
+  renderApp();
+}
+function handleDiscardDraft() {
+  state.draft = null;
+  state.draftForm = null;
+  renderApp();
+}
+async function handleApproveDraft() {
+  const data = state.draftForm || state.draft;
+  try {
+    const saved = await api('/entries', { method: 'POST', body: data });
+    state.entries = [saved, ...state.entries];
+    state.draft = null;
+    state.draftForm = null;
+    state.user.entryCount = (state.user.entryCount || 0) + 1;
+  } catch (e) {
+    state.error = e.data?.error || 'Could not save the entry.';
+  }
+  renderApp();
+}
+
+async function handleSaveEntry(id) {
+  try {
+    const updated = await api('/entries/' + id, { method: 'PUT', body: state.editingEntryForm });
+    state.entries = state.entries.map((e) => (e.id === id ? updated : e));
+    state.editingEntryId = null;
+    state.editingEntryForm = null;
+  } catch (e) {
+    state.error = e.data?.error || 'Could not save changes.';
+  }
+  renderApp();
+}
+async function handleDeleteEntry(id) {
+  try {
+    await api('/entries/' + id, { method: 'DELETE' });
+    state.entries = state.entries.filter((e) => e.id !== id);
+    state.confirmDeleteId = null;
+    if (state.expandedId === id) state.expandedId = null;
+  } catch (e) {
+    state.error = e.data?.error || 'Could not remove the entry.';
+  }
+  renderApp();
+}
+async function handleCurrencyChange(sym) {
+  state.user.currency = sym;
+  renderApp();
+  try {
+    await api('/auth/currency', { method: 'PUT', body: { currency: sym } });
+  } catch (e) {
+    // best-effort
+  }
+}
+async function handleLogout() {
+  await api('/auth/logout', { method: 'POST' });
+  state.user = null;
+  state.entries = [];
+  renderAuth('login');
+}
+async function handleBilling() {
+  try {
+    const path = state.user.subscriptionStatus === 'active' ? '/billing/portal' : '/billing/create-checkout-session';
+    const { url } = await api(path, { method: 'POST' });
+    window.location.href = url;
+  } catch (e) {
+    state.error = e.data?.error || 'Billing is not set up yet.';
+    renderApp();
+  }
+}
+
+function attachAppHandlers() {
+  const root = document.getElementById('root');
+
+  document.getElementById('input-text').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleCreateEntry();
+    }
+  });
+  document.getElementById('create-btn').addEventListener('click', handleCreateEntry);
+  document.getElementById('logout-btn').addEventListener('click', handleLogout);
+  document.getElementById('billing-btn').addEventListener('click', handleBilling);
+  document.querySelectorAll('.sym-btn').forEach((btn) => btn.addEventListener('click', () => handleCurrencyChange(btn.dataset.sym)));
+
+  const approveBtn = document.getElementById('approve-draft');
+  if (approveBtn) approveBtn.addEventListener('click', handleApproveDraft);
+  const editBtn = document.getElementById('edit-draft');
+  if (editBtn) editBtn.addEventListener('click', handleEditDraft);
+  const discardBtn = document.getElementById('discard-draft');
+  if (discardBtn) discardBtn.addEventListener('click', handleDiscardDraft);
+  const cancelEditDraftBtn = document.getElementById('cancel-edit-draft');
+  if (cancelEditDraftBtn) cancelEditDraftBtn.addEventListener('click', handleCancelEditDraft);
+
+  root.addEventListener('click', (e) => {
+    const actionEl = e.target.closest('[data-action]');
+    if (actionEl) {
+      const action = actionEl.dataset.action;
+      const id = actionEl.dataset.id ? Number(actionEl.dataset.id) : null;
+      if (action === 'toggle-expand') {
+        if (state.editingEntryId === id) return;
+        state.expandedId = state.expandedId === id ? null : id;
+        state.confirmDeleteId = null;
+        renderApp();
+      } else if (action === 'edit-entry') {
+        const entry = state.entries.find((x) => x.id === id);
+        state.editingEntryId = id;
+        state.editingEntryForm = JSON.parse(JSON.stringify(entry));
+        state.expandedId = id;
+        renderApp();
+      } else if (action === 'cancel-edit-entry') {
+        state.editingEntryId = null;
+        state.editingEntryForm = null;
+        renderApp();
+      } else if (action === 'save-entry') {
+        handleSaveEntry(id);
+      } else if (action === 'ask-delete') {
+        state.confirmDeleteId = id;
+        renderApp();
+      } else if (action === 'cancel-delete') {
+        state.confirmDeleteId = null;
+        renderApp();
+      } else if (action === 'confirm-delete') {
+        handleDeleteEntry(id);
+      }
+      return;
+    }
+
+    const scopeEl = e.target.closest('[data-scope]');
+    if (!scopeEl) return;
+    const scope = scopeEl.dataset.scope;
+    const form = scope === 'draft' ? state.draftForm : state.editingEntryForm;
+    if (!form) return;
+
+    if (e.target.classList.contains('add-item')) {
+      form.items.push({ description: '', amount: 0 });
+      renderApp();
+    } else if (e.target.classList.contains('remove-item')) {
+      form.items.splice(Number(e.target.dataset.i), 1);
+      renderApp();
+    } else if (e.target.classList.contains('add-entry')) {
+      form.entries.push({ account: '', side: 'debit', amount: 0 });
+      renderApp();
+    } else if (e.target.classList.contains('remove-entry')) {
+      form.entries.splice(Number(e.target.dataset.i), 1);
+      renderApp();
+    } else if (e.target.classList.contains('side-toggle')) {
+      const i = Number(e.target.dataset.i);
+      form.entries[i].side = form.entries[i].side === 'debit' ? 'credit' : 'debit';
+      renderApp();
+    }
+  });
+
+  root.addEventListener('input', (e) => {
+    const el = e.target;
+    const field = el.dataset.field;
+    if (!field) return;
+    const scopeEl = el.closest('[data-scope]');
+    if (!scopeEl) return;
+    const scope = scopeEl.dataset.scope;
+    const form = scope === 'draft' ? state.draftForm : state.editingEntryForm;
+    if (!form) return;
+    const idx = el.dataset.index !== undefined ? Number(el.dataset.index) : null;
+    if (field === 'date') form.date = el.value;
+    else if (field === 'party') form.party = el.value;
+    else if (field === 'narration') form.narration = el.value;
+    else if (field === 'item-desc') form.items[idx].description = el.value;
+    else if (field === 'item-amt') form.items[idx].amount = el.value;
+    else if (field === 'entry-account') form.entries[idx].account = el.value;
+    else if (field === 'entry-amt') form.entries[idx].amount = el.value;
+  });
+}
+
+checkSession();
