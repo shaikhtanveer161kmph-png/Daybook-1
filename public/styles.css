@@ -1,0 +1,150 @@
+:root {
+  --paper: #FAF7F0;
+  --paper-edge: #E3DDCC;
+  --ink: #1F2D24;
+  --ink-muted: #6B7A6F;
+  --rule: #9E3B2E;
+  --voucher: #2B3A67;
+  --voucher-soft: #E9EBF3;
+  --bill: #3F6B4F;
+  --bill-soft: #E8F0EA;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Source Serif 4', serif;
+}
+.mono { font-family: 'JetBrains Mono', monospace; }
+.muted { color: var(--ink-muted); }
+.small { font-size: 0.8rem; }
+a { color: var(--rule); }
+
+.app-wrap, .auth-wrap {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.brand { display: flex; align-items: center; gap: 0.5rem; }
+.brand-mark { color: var(--rule); font-size: 1.4rem; }
+.brand h1 { font-size: 1.6rem; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+
+.header-row { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem; }
+.header-actions { display: flex; align-items: center; gap: 0.5rem; }
+.currency-group { display: flex; gap: 0.25rem; }
+.sym-btn {
+  width: 1.75rem; height: 1.75rem;
+  font-family: 'JetBrains Mono', monospace;
+  border: 1px solid var(--paper-edge);
+  background: transparent;
+  color: var(--ink-muted);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.sym-btn.active { border-color: var(--rule); color: var(--rule); background: var(--bill-soft); }
+
+textarea, input[type=text], input[type=email], input[type=password], input[type=number], input[type=date] {
+  font-family: 'Source Serif 4', serif;
+  border: 1px solid var(--paper-edge);
+  border-radius: 2px;
+  padding: 0.5rem 0.6rem;
+  background: #fff;
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+textarea:focus, input:focus, button:focus-visible {
+  outline: 2px solid var(--rule);
+  outline-offset: 1px;
+}
+#input-text { width: 100%; resize: none; margin-bottom: 0.5rem; }
+#input-text:disabled { background: var(--paper-edge); }
+
+.row-between { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; gap: 0.5rem; }
+.hint { font-size: 0.75rem; color: var(--ink-muted); }
+
+.btn {
+  font-family: 'Source Serif 4', serif;
+  border: 1px solid var(--paper-edge);
+  background: transparent;
+  color: var(--ink);
+  padding: 0.4rem 0.9rem;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.btn.small { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+.btn.primary { background: var(--ink); color: var(--paper); border: none; font-weight: 600; }
+.btn.muted { color: var(--ink-muted); }
+.btn:disabled { background: var(--paper-edge); color: var(--ink-muted); cursor: not-allowed; }
+
+.error-banner, .error {
+  background: var(--bill-soft);
+  color: var(--rule);
+  padding: 0.5rem 0.75rem;
+  border-radius: 2px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+.trial-note {
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+  margin-bottom: 0.75rem;
+}
+
+.section-title { font-size: 0.95rem; font-weight: 600; margin: 1.5rem 0 0.5rem; }
+
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin: 1.5rem 0 0.5rem; }
+.summary-cell { border: 1px solid var(--paper-edge); border-radius: 2px; padding: 0.5rem 0.75rem; }
+.summary-cell .label { font-size: 0.7rem; color: var(--ink-muted); }
+.bill-color { color: var(--bill); font-weight: 600; }
+.voucher-color { color: var(--voucher); font-weight: 600; }
+
+.empty-state {
+  border: 1px dashed var(--paper-edge);
+  color: var(--ink-muted);
+  padding: 1rem 0.75rem;
+  border-radius: 2px;
+  font-size: 0.9rem;
+}
+
+.register-row { border-bottom: 1px solid var(--paper-edge); }
+.row-summary { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0; cursor: pointer; }
+.date-col { font-size: 0.75rem; width: 4.5rem; flex-shrink: 0; }
+.badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 2px; font-size: 0.75rem; }
+.badge.bill { background: var(--bill-soft); color: var(--bill); }
+.badge.voucher { background: var(--voucher-soft); color: var(--voucher); }
+.label-col { flex: 1; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chevron { color: var(--ink-muted); font-size: 0.75rem; }
+.row-detail { padding-bottom: 0.75rem; }
+
+.doc-card { border: 1px solid var(--paper-edge); border-left-width: 3px; border-radius: 2px; padding: 0.75rem 1rem; margin: 0.75rem 0 0.25rem; background: var(--paper); }
+.doc-card.voucher { border-left-color: var(--voucher); }
+.doc-card.bill { border-left-color: var(--bill); }
+.doc-head { display: flex; justify-content: space-between; align-items: baseline; }
+.doc-type { font-weight: 600; font-size: 0.95rem; }
+.voucher-text { color: var(--voucher); }
+.bill-text { color: var(--bill); }
+.doc-party { margin: 0.5rem 0; font-size: 0.9rem; }
+.line-list { border-top: 1px solid var(--paper-edge); margin-top: 0.5rem; }
+.line-row { display: flex; justify-content: space-between; padding: 0.35rem 0; border-bottom: 1px solid var(--paper-edge); font-size: 0.9rem; }
+.side-tag { font-size: 0.7rem; color: var(--ink-muted); margin-right: 0.4rem; }
+.line-total { display: flex; justify-content: space-between; padding-top: 0.5rem; margin-top: 0.25rem; border-top: 2px solid var(--ink); font-weight: 600; }
+.doc-card.voucher .line-total, .edit-card.voucher .line-total { border-top-color: var(--voucher); }
+.doc-card.bill .line-total, .edit-card.bill .line-total { border-top-color: var(--bill); }
+.narration { margin-top: 0.75rem; font-size: 0.85rem; font-style: italic; color: var(--ink-muted); }
+
+.edit-card { border: 1px solid var(--paper-edge); border-left-width: 3px; border-radius: 2px; padding: 0.75rem 1rem; margin: 0.75rem 0 0.25rem; background: #fff; }
+.edit-card.voucher { border-left-color: var(--voucher); }
+.edit-card.bill { border-left-color: var(--bill); }
+.edit-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.4rem; }
+.edit-row input[type=text] { flex: 1; }
+.edit-row input[type=number] { width: 6rem; text-align: right; }
+.items-wrap { margin-top: 0.25rem; }
+.side-toggle {
+  width: 2.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;
+  border: 1px solid var(--paper-edge); background: transparent; border-radius: 2px; padding: 0.4rem 0; cursor: pointer;
+}
+.icon-btn { border: none; background: transparent; color: var(--ink-muted); cursor: pointer; font-size: 0.9rem; }
+.link-btn { border: none; background: transparent; color: var(--rule); cursor: pointer; font-size: 0.8rem; padding: 0
